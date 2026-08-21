@@ -276,6 +276,7 @@ class Ship {
     this.invincible    = 3;
     this.shootCooldown = 0;
     this.speedBoostTimer = 0;   // power-up de velocidad activo
+    this.tripleShotTimer = 0;   // power-up de triple disparo activo
     this.dead          = false;
   }
 
@@ -284,6 +285,7 @@ class Ship {
     if (this.invincible      > 0) this.invincible      -= dt;
     if (this.shootCooldown   > 0) this.shootCooldown   -= dt;
     if (this.speedBoostTimer > 0) this.speedBoostTimer -= dt;
+    if (this.tripleShotTimer > 0) this.tripleShotTimer -= dt;
 
     const ROT   = 3.5;   // rad/s
     const THRUST = 260;  // px/s²
@@ -311,6 +313,15 @@ class Ship {
     const NOSE = 21;
     const ox = this.x + Math.cos(this.angle) * NOSE;
     const oy = this.y + Math.sin(this.angle) * NOSE;
+    // Triple disparo: abanico de 3 balas
+    if (this.tripleShotTimer > 0) {
+      const SPREAD = 0.16;
+      return [
+        new Bullet(ox, oy, this.angle - SPREAD),
+        new Bullet(ox, oy, this.angle),
+        new Bullet(ox, oy, this.angle + SPREAD),
+      ];
+    }
     return [new Bullet(ox, oy, this.angle)];
   }
 
@@ -322,7 +333,8 @@ class Ship {
     ctx.save();
     ctx.translate(this.x, this.y);
     ctx.rotate(this.angle);
-    ctx.strokeStyle = this.speedBoostTimer > 0 ? '#4df' : '#fff';
+    ctx.strokeStyle = this.speedBoostTimer > 0 ? '#4df'
+                    : this.tripleShotTimer > 0 ? '#fa0' : '#fff';
     ctx.lineWidth   = 1.5;
     ctx.lineJoin    = 'round';
 
@@ -383,9 +395,10 @@ class Particle {
 
 // ── PowerUp ───────────────────────────────────────────────────────────────────
 class PowerUp {
-  constructor(x, y) {
+  constructor(x, y, type = 'speed') {
     this.x = x;
     this.y = y;
+    this.type = type;   // 'speed' | 'triple'
     const angle = rand(0, Math.PI * 2);
     const speed = 40;
     this.vx = Math.cos(angle) * speed;
@@ -408,19 +421,30 @@ class PowerUp {
 
     ctx.save();
     ctx.translate(this.x, this.y);
-    ctx.strokeStyle = '#4df';
+    ctx.strokeStyle = this.type === 'triple' ? '#fa0' : '#4df';
     ctx.lineWidth   = 2;
     ctx.lineJoin    = 'round';
-    // Rayo (símbolo de velocidad)
-    ctx.beginPath();
-    ctx.moveTo( 3, -8);
-    ctx.lineTo(-4,  1);
-    ctx.lineTo( 0,  1);
-    ctx.lineTo(-3,  8);
-    ctx.lineTo( 5, -2);
-    ctx.lineTo( 1, -2);
-    ctx.closePath();
-    ctx.stroke();
+
+    if (this.type === 'triple') {
+      // Tres líneas en abanico
+      for (const a of [-0.5, 0, 0.5]) {
+        ctx.beginPath();
+        ctx.moveTo(0, 7);
+        ctx.lineTo(Math.sin(a) * -9, 7 - Math.cos(a) * 14);
+        ctx.stroke();
+      }
+    } else {
+      // Rayo (símbolo de velocidad)
+      ctx.beginPath();
+      ctx.moveTo( 3, -8);
+      ctx.lineTo(-4,  1);
+      ctx.lineTo( 0,  1);
+      ctx.lineTo(-3,  8);
+      ctx.lineTo( 5, -2);
+      ctx.lineTo( 1, -2);
+      ctx.closePath();
+      ctx.stroke();
+    }
     ctx.restore();
   }
 }
@@ -553,8 +577,10 @@ function update(dt) {
         score += POINTS[a.size];
         explode(a.x, a.y, a.size * 5);
         newAsteroids.push(...a.split());
-        // Probabilidad de soltar un power-up de velocidad
-        if (Math.random() < 0.2) powerUps.push(new PowerUp(a.x, a.y));
+        // Probabilidad de soltar un power-up (velocidad o triple disparo)
+        const drop = Math.random();
+        if (drop < 0.15) powerUps.push(new PowerUp(a.x, a.y, 'speed'));
+        else if (drop < 0.25) powerUps.push(new PowerUp(a.x, a.y, 'triple'));
       }
     }
   }
@@ -581,7 +607,8 @@ function update(dt) {
   for (const pu of powerUps) {
     if (!pu.dead && dist(ship, pu) < ship.radius + pu.radius) {
       pu.dead = true;
-      ship.speedBoostTimer = 5;
+      if (pu.type === 'triple') ship.tripleShotTimer = 5;
+      else ship.speedBoostTimer = 5;
     }
   }
 
@@ -636,6 +663,12 @@ function drawHUD() {
   if (ship.speedBoostTimer > 0) {
     ctx.fillStyle = '#4df';
     ctx.fillText(`VELOCIDAD ${ship.speedBoostTimer.toFixed(1)}s`, W / 2, 46);
+    ctx.fillStyle = '#fff';
+  }
+
+  if (ship.tripleShotTimer > 0) {
+    ctx.fillStyle = '#fa0';
+    ctx.fillText(`TRIPLE DISPARO ${ship.tripleShotTimer.toFixed(1)}s`, W / 2, ship.speedBoostTimer > 0 ? 66 : 46);
     ctx.fillStyle = '#fff';
   }
 
