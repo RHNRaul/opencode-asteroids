@@ -276,6 +276,9 @@ const SKINS = [
     verts: [[18, 0], [-2, -3], [-13, -10], [-5, 0], [-13, 10], [-2, 3]] },
   { name: 'ULTRAVIOLETA', color: '#c4f', thrustColor: 'rgba(196, 68, 255, 0.85)',  flameX: -6,
     verts: [[21, 0], [-10, -5], [-5, 0], [-10, 5]] },
+  { name: 'MORADA x2',    color: '#c0f', thrustColor: 'rgba(200, 0, 255, 0.85)',   flameX: -8,
+    scale: 2, scoreMultiplier: 2,
+    verts: [[20, 0], [-12, -9], [-7, 0], [-12, 9]] },
 ];
 
 const SKIN_KEY = 'asteroids_skin';
@@ -305,7 +308,7 @@ class Ship {
     this.angle  = -Math.PI / 2;
     this.vx     = 0;
     this.vy     = 0;
-    this.radius = 12;
+    this.radius = 12 * (SKINS[currentSkinIndex].scale || 1);
     this.thrusting     = false;
     this.invincible    = 3;
     this.shootCooldown = 0;
@@ -346,7 +349,9 @@ class Ship {
   tryShoot() {
     if (this.shootCooldown > 0 || this.dead) return [];
     this.shootCooldown = 0.2;
-    const NOSE = 21;
+    const skin = SKINS[currentSkinIndex];
+    const scale = skin.scale || 1;
+    const NOSE = 21 * scale;
     const ox = this.x + Math.cos(this.angle) * NOSE;
     const oy = this.y + Math.sin(this.angle) * NOSE;
     // Triple disparo: abanico de 3 balas
@@ -367,6 +372,7 @@ class Ship {
     if (this.invincible > 0 && Math.floor(this.invincible * 8) % 2 === 0) return;
 
     const skin = SKINS[currentSkinIndex];
+    const scale = skin.scale || 1;
 
     ctx.save();
     ctx.translate(this.x, this.y);
@@ -379,9 +385,9 @@ class Ship {
 
     // Silueta según la skin activa
     ctx.beginPath();
-    ctx.moveTo(skin.verts[0][0], skin.verts[0][1]);
+    ctx.moveTo(skin.verts[0][0] * scale, skin.verts[0][1] * scale);
     for (let i = 1; i < skin.verts.length; i++)
-      ctx.lineTo(skin.verts[i][0], skin.verts[i][1]);
+      ctx.lineTo(skin.verts[i][0] * scale, skin.verts[i][1] * scale);
     ctx.closePath();
     ctx.stroke();
     ctx.setLineDash([]);
@@ -389,9 +395,9 @@ class Ship {
     // Llama del propulsor
     if (this.thrusting && Math.random() > 0.35) {
       ctx.beginPath();
-      ctx.moveTo(skin.flameX, -4);
-      ctx.lineTo(skin.flameX - rand(6, 14), 0);
-      ctx.lineTo(skin.flameX,  4);
+      ctx.moveTo(skin.flameX * scale, -4 * scale);
+      ctx.lineTo(skin.flameX * scale - rand(6, 14) * scale, 0);
+      ctx.lineTo(skin.flameX * scale,  4 * scale);
       ctx.strokeStyle = skin.thrustColor;
       ctx.stroke();
     }
@@ -634,12 +640,13 @@ function update(dt) {
 
   // Bala vs asteroide
   const newAsteroids = [];
+  const scoreMult = SKINS[currentSkinIndex].scoreMultiplier || 1;
   for (const b of bullets) {
     for (const a of asteroids) {
       if (!a.dead && !b.dead && dist(b, a) < a.radius) {
         b.dead = true;
         a.dead = true;
-        score += POINTS[a.size];
+        score += POINTS[a.size] * scoreMult;
         explode(a.x, a.y, a.size * 5);
         newAsteroids.push(...a.split());
         // Probabilidad de soltar un power-up (velocidad, triple disparo o escudo: 33% cada uno)
@@ -660,7 +667,7 @@ function update(dt) {
       if (!e.dead && !b.dead && dist(b, e) < e.radius) {
         b.dead = true;
         e.dead = true;
-        score += POINTS[e.size] * 2;
+        score += POINTS[e.size] * 2 * scoreMult;
         explode(e.x, e.y, e.size * 5);
         newEstrellas.push(...e.split());
       }
@@ -702,6 +709,7 @@ function update(dt) {
 // ── Draw ──────────────────────────────────────────────────────────────────────
 function drawLifeIcon(x, y) {
   const skin = SKINS[currentSkinIndex];
+  const scale = skin.scale || 1;
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(-Math.PI / 2);
@@ -709,10 +717,10 @@ function drawLifeIcon(x, y) {
   ctx.lineWidth   = 1.2;
   ctx.lineJoin    = 'round';
   ctx.beginPath();
-  ctx.moveTo( 9,  0);
-  ctx.lineTo(-6, -5);
-  ctx.lineTo(-3,  0);
-  ctx.lineTo(-6,  5);
+  ctx.moveTo( 9 * scale,  0);
+  ctx.lineTo(-6 * scale, -5 * scale);
+  ctx.lineTo(-3 * scale,  0);
+  ctx.lineTo(-6 * scale,  5 * scale);
   ctx.closePath();
   ctx.stroke();
   ctx.restore();
