@@ -4,6 +4,8 @@
     "external_directory": {
       "/tmp/**": "allow"
     },
-    "bash": "allow"
+    "bash": "allow",
+    "ask": "deny",
+    "doom_loop": "deny"
   }
 }
